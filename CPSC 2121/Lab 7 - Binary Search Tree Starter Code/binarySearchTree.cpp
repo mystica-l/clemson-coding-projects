@@ -1,8 +1,8 @@
 /*
- * Name:
- * Date Submitted:
- * Lab Section:
- * Assignment Name:
+ * Name: Kenny Sun
+ * Date Submitted: 3/29/2024
+ * Lab Section: CPSC 2121-003
+ * Assignment Name: Binary Search Tree
  */
 
 #include <iostream>
@@ -10,11 +10,26 @@
 #include <cstdlib>
 #include <algorithm>
 #include <assert.h>
-
+#include <math.h>
 #include "binarySearchTree.h"
 
 using namespace std;
 
+
+void treeprint(Node *root, int level)
+{
+        if (root == NULL)
+                return;
+        for (int i = 0; i < level; i++)
+                printf(i == level - 1 ? "|-" : "  ");
+        printf("%d\n", root->key);
+        treeprint(root->left, level + 1);
+        treeprint(root->right, level + 1);
+}
+
+
+/* fix_size */
+//Updates the size of the BST node
 void fix_size(Node *T)
 {
     T->size = 1;
@@ -22,6 +37,7 @@ void fix_size(Node *T)
     if (T->right) T->size += T->right->size;
 }
 
+/* insert */
 // insert key k into tree T, returning a pointer to the resulting tree
 Node *insert(Node *T, int k)
 {
@@ -32,6 +48,7 @@ Node *insert(Node *T, int k)
     return T;
 }
 
+/* inorder_traversal */
 // returns a vector of key values corresponding to the inorder traversal of T (i.e., the contents of T in sorted order)
 vector<int> inorder_traversal(Node *T)
 {
@@ -45,10 +62,11 @@ vector<int> inorder_traversal(Node *T)
     return inorder;
 }
 
+/* find */
 // return a pointer to the node with key k in tree T, or nullptr if it doesn't exist
 Node *find(Node *T, int k)
 {   
-    //Base cases
+    //Base cases for if the key is found or if a dead end is reached
     if(k == T->key) return T;
     else if(k < T->key && T->left == nullptr) return nullptr;
     else if(k > T->key && T->right == nullptr) return nullptr;
@@ -58,6 +76,7 @@ Node *find(Node *T, int k)
     else return find(T->right, k);
 }
 
+/* select */
 // return pointer to node of rank r (with r'th largest key; e.g. r=0 is the minimum)
 Node *select(Node *T, int r)
 {
@@ -68,7 +87,7 @@ Node *select(Node *T, int r)
     if(T->left == nullptr) rank = 0;
     else rank = T->left->size;
 
-    //Base case
+    //Base case for when the rank is found
     if(rank == r) return T;
     //If the rank of the node is greater than the rank to find, select left
     else if(rank > r) return select(T->left, r);
@@ -76,41 +95,212 @@ Node *select(Node *T, int r)
     else return select(T->right, r - rank - 1);
 }
 
+/* join */
 // Join trees L and R (with L containing keys all <= the keys in R)
 // Return a pointer to the joined tree.  
 Node *join(Node *L, Node *R)
 {
-  // choose either the root of L or the root of R to be the root of the joined tree
-  // (where we choose with probabilities proportional to the sizes of L and R)
-  
-  //Implement Node *join(Node *L, Node *R)
+    //Base cases for null pointers
+    if(L == nullptr && R == nullptr) return nullptr;
+    if(L == nullptr) return R;
+    if(R == nullptr) return L;
+    
+    //Probability to choose a root
+    double leftKey = abs(static_cast<double>(L->key));
+    double rightKey = abs(static_cast<double>(R->key));
+    double probability = leftKey / (leftKey + rightKey);
+
+    //Right tree is root
+    if(static_cast<double>(rand()) / RAND_MAX > probability)
+    {   
+        //Base case
+        if(R->left == nullptr)
+        { 
+            //Set the left of the right tree to the left tree and return it
+            R->left = L;
+            fix_size(R);
+            return R;
+        }
+        else
+        {
+            //Set the left of the right tree to the join of the left tree and itself
+            R->left = join(L, R->left);
+            fix_size(R);
+            return R;
+        }
+    }
+    //Left tree is root
+    else 
+    {
+        if(L->right == nullptr)
+        {
+            //Set the right of the left tree to the right tree and return it
+            L->right = R;
+            fix_size(L);
+            return L;
+        }
+        else
+        {
+            //Set the right of the left tree to the join of the right tree and itself
+            L->right = join(L->right, R);
+            fix_size(L);
+            return L;
+        }
+    }
 }
 
+/* remove */
 // remove key k from T, returning a pointer to the resulting tree.
 // it is required that k be present in T
 Node *remove(Node *T, int k)
 {
-  assert(T != nullptr);
-  
-  //Implement Node *remove(Node *T, int k)
+    assert(T != nullptr);
+    //Base case for the node being found to remove
+    if(T->key == k)
+    {
+        //Delete T and return the joined children
+        Node* tempLeft = T->left;
+        Node* tempRight = T->right;
+        delete T;
+        return join(tempLeft, tempRight);
+    }
+    //If k is greater than the key
+    if(T->key < k)
+    {
+        //Recursively search right
+        T->right = remove(T->right, k);
+        return T;
+    }
+    //If k is less than the key
+    if(T->key > k)
+    {
+        //Recurisvely search left
+        T->left = remove(T->left, k);
+        return T;
+    }
+
+    return T;
 }
 
+/* split */
 // Split tree T on key k into tree L (containing keys <= k) and a tree R (containing keys > k)
 void split(Node *T, int k, Node **L, Node **R)
 {
-  //Implement void split(Node *T, int k, Node **L, Node **R)
+    //Base case
+    if (T == nullptr) {
+        *L = nullptr;
+        *R = nullptr;
+        return;
+    }
+
+    //If key is greater than k
+    if(T->key > k)
+    {
+        //Base case if there is no left branch
+        if(T->left == nullptr)
+        {
+            *L = nullptr;
+            *R = T;
+        }
+        else
+        {
+            //Current node and entire right side goes into right tree
+            *R = T;
+            Node *splitLeft = T->left;
+            (*R)->left = nullptr;
+            fix_size(*R);
+            Node *tempRight = nullptr;
+            Node *tempLeft = nullptr;
+            //Split the left side and
+            //Place resulting right side as current tree's left side
+            //And resulting left side will become left tree
+            split(splitLeft, k, &tempLeft, &tempRight);
+            T->left = tempRight;
+            fix_size(T);
+            *L = tempLeft;
+        }
+    }
+    else
+    {
+        //Base case if there is no right branch
+        if(T->right == nullptr)
+        {
+            *R = nullptr;
+            *L = T;
+        }
+        else
+        {
+            //Current node and entire left side goes into left tree
+            *L = T;
+            Node *splitRight = T->right;
+            (*L)->right = nullptr;
+            fix_size(*L);
+            Node *tempRight = nullptr;
+            Node *tempLeft = nullptr;
+            //Split the right side and
+            //Place resulting left side as current tree's right side
+            //And resulting right side will become right tree
+            split(splitRight, k, &tempLeft, &tempRight);
+            T->right = tempLeft;
+            fix_size(T);
+            *R = tempRight;
+        }
+    }
+    
 }
 
+/* insert_random */
 // insert key k into the tree T, returning a pointer to the resulting tree
 Node *insert_random(Node *T, int k)
 {
-  // If k is the Nth node inserted into T, then:
-  // with probability 1/N, insert k at the root of T
-  // otherwise, insert_random k recursively left or right of the root of T
-  
-  //Implement Node *insert_random(Node *T, int k)
+    // If k is the Nth node inserted into T, then:
+    // with probability 1/N, insert k at the root of T
+    // otherwise, insert_random k recursively left or right of the root of T
+
+    //Base case if insert_random has reached a leaf node
+    if(T == nullptr)
+    {
+        //Create a new node and return it
+        Node *insertNode = new Node(k);
+        fix_size(insertNode);
+        return insertNode;
+    }
+    int baseCase = rand() % T->size;
+    //Base case insertion
+    if(baseCase == 0)
+    {
+        //Split the tree up with respect to k
+        Node *splitLeft = nullptr;
+        Node *splitRight = nullptr;
+        split(T, k, &splitLeft, &splitRight);
+
+        //Insert the new node and set the left and right pointers to the split up tree
+        Node *insertNode = new Node(k);
+        insertNode->left = splitLeft;
+        insertNode->right = splitRight;
+        fix_size(insertNode);
+        return insertNode;
+    }
+    //If the key is less than k
+    else if(T->key < k)
+    {
+        //Recursively inert right
+        T->right = insert_random(T->right, k);
+        fix_size(T);
+        return T;
+    }
+    //If the key is greater than k
+    else
+    {
+        //Recursively insert left
+        T->left = insert_random(T->left, k);
+        fix_size(T);
+        return T;
+    }
 }
 
+/* printVector */
+//Prints out all the elements of a vector
 void printVector(vector<int> v)
 {
     for (int i=0; i<v.size(); i++)
@@ -120,6 +310,7 @@ void printVector(vector<int> v)
 }
 
 /*
+
 int main(void)
 {
   vector<int> inorder;
@@ -191,4 +382,5 @@ int main(void)
   
   return 0;
 }
+
 */

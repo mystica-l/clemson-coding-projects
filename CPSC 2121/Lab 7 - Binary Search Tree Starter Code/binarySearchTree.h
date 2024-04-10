@@ -1,3 +1,10 @@
+/*
+ * Name: Kenny Sun
+ * Date Submitted: 3/29/2024
+ * Lab Section: CPSC 2121-003
+ * Assignment Name: Binary Search Tree
+ */
+
 #pragma once
 
 #include <iostream>
